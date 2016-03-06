@@ -1,7 +1,7 @@
 #include <petsc.h>
 #include <TopOpt.h>
 #include <LinearElasticity.h>
-#include <MMA.h>
+#include <OC.h>
 #include <Filter.h>
 #include <MPIIO.h>
 #include <mpi.h>
@@ -35,10 +35,10 @@ int main(int argc, char *argv[]){
 	
 	// STEP 4: VISUALIZATION USING VTK
 	MPIIO *output = new MPIIO(opt->da_nodes,3,"ux, uy, uz",2,"x, xPhys");
-	// STEP 5: THE OPTIMIZER MMA
-	MMA *mma;
+	// STEP 5: THE OPTIMIZER OC
+	OC *oc;
 	PetscInt itr=0;
-	opt->AllocateMMAwithRestart(&itr, &mma); // allow for restart !
+	opt->AllocateOCwithRestart(&itr, &oc); // allow for restart !
 
 	// STEP 6: FILTER THE INITIAL DESIGN/RESTARTED DESIGN
 	ierr = filter->FilterProject(opt); CHKERRQ(ierr);
@@ -68,13 +68,13 @@ int main(int argc, char *argv[]){
 		ierr = filter->Gradients(opt); CHKERRQ(ierr);
 
 		// Sets outer movelimits on design variables
-		ierr = mma->SetOuterMovelimit(opt->Xmin,opt->Xmax,opt->movlim,opt->x,opt->xmin,opt->xmax); CHKERRQ(ierr);
+		ierr = oc->SetOuterMovelimit(opt->Xmin,opt->Xmax,opt->movlim,opt->x,opt->xmin,opt->xmax); CHKERRQ(ierr);
 
-		// Update design by MMA
-		ierr = mma->Update(opt->x,opt->dfdx,opt->gx,opt->dgdx,opt->xmin,opt->xmax); CHKERRQ(ierr);
+		// Update design by OC
+		ierr = oc->Update(opt->x,opt->dfdx,opt->gx,opt->dgdx,opt->xmin,opt->xmax); CHKERRQ(ierr);
 
 		// Inf norm on the design change
-		ch = mma->DesignChange(opt->x,opt->xold);
+		ch = oc->DesignChange(opt->x,opt->xold);
 		
 		// Filter design field
 		ierr = filter->FilterProject(opt); CHKERRQ(ierr);
@@ -93,19 +93,19 @@ int main(int argc, char *argv[]){
 
 		// Dump data needed for restarting code at termination
 		if (itr%3==0)	{
-			opt->WriteRestartFiles(&itr, mma);
+			opt->WriteRestartFiles(&itr, oc);
 			physics->WriteRestartFiles();
 		}
 	}
 	// Write restart WriteRestartFiles
-	opt->WriteRestartFiles(&itr, mma);  
+	opt->WriteRestartFiles(&itr, oc);
 	physics->WriteRestartFiles();
 
 	// Dump final design
 	output->WriteVTK(opt->da_nodes,physics->GetStateField(),opt, itr+1);
 
 	// STEP 7: CLEAN UP AFTER YOURSELF
-	delete mma;
+	delete oc;
 	delete output;
 	delete filter;
 	delete opt;  

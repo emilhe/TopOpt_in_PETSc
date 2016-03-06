@@ -8,7 +8,7 @@
 #include <fstream>
 #include <sstream>
 #include <math.h>
-#include <MMA.h>
+#include <OC.h>
 
 /*
  Authors: Niels Aage, Erik Andreassen, Boyan Lazarov, August 2013
@@ -40,9 +40,9 @@ public:
 	TopOpt();
 	~TopOpt();
 
-	// Method to allocate MMA with/without restarting
-	PetscErrorCode AllocateMMAwithRestart(PetscInt *itr, MMA **mma);
-	PetscErrorCode WriteRestartFiles(PetscInt *itr, MMA *mma);
+	// Method to allocate OC with/without restarting
+	PetscErrorCode AllocateOCwithRestart(PetscInt *itr, OC **oc);
+	PetscErrorCode WriteRestartFiles(PetscInt *itr, OC *oc);
 	
 	// Physical domain variables
 	PetscScalar xc[6]; // Domain coordinates 

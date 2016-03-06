@@ -301,19 +301,19 @@ PetscErrorCode TopOpt::SetUpOPT(){
   	return(ierr);
 }
 
-PetscErrorCode TopOpt::AllocateMMAwithRestart(PetscInt *itr, MMA **mma)  {
+PetscErrorCode TopOpt::AllocateOCwithRestart(PetscInt *itr, OC **oc)  {
 
 	PetscErrorCode ierr = 0;
 
-	// Set MMA parameters (for multiple load cases)
-	PetscScalar aMMA[m];
-	PetscScalar cMMA[m];
-	PetscScalar dMMA[m];
-	for (PetscInt i=0;i<m;i++){
-	    aMMA[i]=0.0;
-	    dMMA[i]=0.0;
-	    cMMA[i]=1000.0;
-	}
+//	// Set MMA parameters (for multiple load cases)
+//	PetscScalar aMMA[m];
+//	PetscScalar cMMA[m];
+//	PetscScalar dMMA[m];
+//	for (PetscInt i=0;i<m;i++){
+//	    aMMA[i]=0.0;
+//	    dMMA[i]=0.0;
+//	    cMMA[i]=1000.0;
+//	}
 
 	// Check if restart is desired
 	restart = PETSC_TRUE; // DEFAULT USES RESTART
@@ -403,24 +403,24 @@ PetscErrorCode TopOpt::AllocateMMAwithRestart(PetscInt *itr, MMA **mma)  {
 		// Choose if restart is full or just an initial design guess
 		if (onlyLoadDesign){
 			PetscPrintf(PETSC_COMM_WORLD,"# Loading design from file: %s \n",restartFileVec.c_str());
-			*mma = new MMA(nGlobalDesignVar,m,x, aMMA, cMMA, dMMA);
+			*oc = new OC(nGlobalDesignVar,m,x);
 		}
 		else {
 			PetscPrintf(PETSC_COMM_WORLD,"# Continue optimization from file: %s \n",restartFileVec.c_str());
-			*mma = new MMA(nGlobalDesignVar,m,*itr,xo1,xo2,U,L,aMMA,cMMA,dMMA);
+			*oc = new OC(nGlobalDesignVar,m,*itr,xo1,xo2,U,L);
 		}
 
 		PetscPrintf(PETSC_COMM_WORLD,"# Successful restart from file: %s and %s \n",restartFileVec.c_str(),restartFileItr.c_str());
 	}
 	else {
-		*mma = new MMA(nGlobalDesignVar,m,x,aMMA,cMMA,dMMA);
+		*oc = new OC(nGlobalDesignVar,m,x);
 	}  
 
 	return ierr;
 } 
 
 
-PetscErrorCode TopOpt::WriteRestartFiles(PetscInt *itr, MMA *mma) {
+PetscErrorCode TopOpt::WriteRestartFiles(PetscInt *itr, OC *oc) {
 
 	PetscErrorCode ierr=0;
 	// Only dump data if correct allocater has been used
@@ -429,7 +429,7 @@ PetscErrorCode TopOpt::WriteRestartFiles(PetscInt *itr, MMA *mma) {
 	}
 
 	// Get restart vectors
-	mma->Restart(xo1,xo2,U,L);
+	oc->Restart(xo1,xo2,U,L);
 	
 	// Choose previous set of restart files
 	if (flip){ flip = PETSC_FALSE; 	}	
