@@ -264,6 +264,7 @@ PetscErrorCode TopOpt::SetUpOPT(){
 	PetscOptionsGetReal(NULL,"-rmin",&rmin,&flg);
 	PetscOptionsGetInt(NULL,"-maxItr",&maxItr,&flg);
 	PetscOptionsGetInt(NULL,"-filter",&filter,&flg);
+	PetscOptionsGetInt(NULL,"-ex",&ex,&flg);
 	PetscOptionsGetReal(NULL,"-Xmin",&Xmin,&flg);
 	PetscOptionsGetReal(NULL,"-Xmax",&Xmax,&flg);
 	PetscOptionsGetReal(NULL,"-movlim",&movlim,&flg);
