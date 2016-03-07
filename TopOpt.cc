@@ -12,48 +12,48 @@
 
 
 TopOpt::TopOpt(){
-      
-  x=NULL;
-  xPhys=NULL;
-  dfdx=NULL;
-  dgdx=NULL;
-  gx=NULL;
-  da_nodes=NULL;
-  da_elem=NULL;
-  
-  xo1=NULL;
-  xo2=NULL;
-  U=NULL;
-  L=NULL;
-  
-  SetUp();
-  
+
+	x=NULL;
+	xPhys=NULL;
+	dfdx=NULL;
+	dgdx=NULL;
+	gx=NULL;
+	da_nodes=NULL;
+	da_elem=NULL;
+
+	xo1=NULL;
+	xo2=NULL;
+	U=NULL;
+	L=NULL;
+
+	SetUp();
+
 }
 
 TopOpt::~TopOpt(){
-  
-  
-    // Delete vectors
-    if (x!=NULL){ VecDestroy(&x); }
-    if (dfdx!=NULL){ VecDestroy(&dfdx); }
-    if (dgdx!=NULL){ VecDestroyVecs(m,&dgdx); }
-    // Densities
-    if (xPhys!=NULL){ VecDestroy(&xPhys); }
-    if (xold!=NULL){ VecDestroy(&xold); }
-    if (xmin!=NULL){ VecDestroy(&xmin); }
-    if (xmax!=NULL){ VecDestroy(&xmax); }
-    
-    if (da_nodes!=NULL){ DMDestroy(&(da_nodes)); }
-    if (da_elem!=NULL){ DMDestroy(&(da_elem)); }
-    
-    // Delete constraints
-    if (gx!=NULL){ delete [] gx; }
-    
-    // mma restart method    		
-    if (xo1!=NULL){ VecDestroy(&xo1); }
-    if (xo2!=NULL){ VecDestroy(&xo2); }
-    if (L!=NULL){ VecDestroy(&L); }
-    if (U!=NULL){ VecDestroy(&U);  }
+
+
+	// Delete vectors
+	if (x!=NULL){ VecDestroy(&x); }
+	if (dfdx!=NULL){ VecDestroy(&dfdx); }
+	if (dgdx!=NULL){ VecDestroyVecs(m,&dgdx); }
+	// Densities
+	if (xPhys!=NULL){ VecDestroy(&xPhys); }
+	if (xold!=NULL){ VecDestroy(&xold); }
+	if (xmin!=NULL){ VecDestroy(&xmin); }
+	if (xmax!=NULL){ VecDestroy(&xmax); }
+
+	if (da_nodes!=NULL){ DMDestroy(&(da_nodes)); }
+	if (da_elem!=NULL){ DMDestroy(&(da_elem)); }
+
+	// Delete constraints
+	if (gx!=NULL){ delete [] gx; }
+
+	// mma restart method
+	if (xo1!=NULL){ VecDestroy(&xo1); }
+	if (xo2!=NULL){ VecDestroy(&xo2); }
+	if (L!=NULL){ VecDestroy(&L); }
+	if (U!=NULL){ VecDestroy(&U);  }
 }
 
 
@@ -61,34 +61,36 @@ TopOpt::~TopOpt(){
 //PetscErrorCode TopOpt::SetUp(Vec CRAPPY_VEC){
 PetscErrorCode TopOpt::SetUp(){
 	PetscErrorCode ierr;
-  
+
 	// SET DEFAULTS for FE mesh and levels for MG solver
-        nxyz[0] = 65;//129;
-        nxyz[1] = 33;//65;
-        nxyz[2] = 33;//65;
-        xc[0] = 0.0;
-        xc[1] = 2.0;
-        xc[2] = 0.0;
-        xc[3] = 1.0;
-        xc[4] = 0.0;
-        xc[5] = 1.0;
+	nxyz[0] = 65;//129;
+	nxyz[1] = 33;//65;
+	nxyz[2] = 33;//65;
+	xc[0] = 0.0;
+	xc[1] = 2.0;
+	xc[2] = 0.0;
+	xc[3] = 1.0;
+	xc[4] = 0.0;
+	xc[5] = 1.0;
 	nu=0.3;
-        nlvls = 4;
-	
+	nlvls = 4;
+
 	// SET DEFAULTS for optimization problems
 	volfrac = 0.12;
 	maxItr = 400;
-        rmin = 0.08;
-        penal = 3.0;
-        Emin = 1.0e-9;
-        Emax = 1.0;
-        filter = 0; // 0=sens,1=dens,2=PDE - other val == no filtering
-        m = 1; // volume constraint
-        Xmin = 0.0;
-        Xmax = 1.0;
-        movlim = 0.2;
+	rmin = 0.08;
+	penal = 3.0;
+	Emin = 1.0e-9;
+	Emax = 1.0;
+	filter = 0; // 0=sens,1=dens,2=PDE - other val == no filtering
+	m = 1; // volume constraint
+	Xmin = 0.0;
+	Xmax = 1.0;
+	movlim = 0.2;
 	restart = PETSC_TRUE;
-	
+	cc = PETSC_FALSE;
+	ex = 0;
+
 	ierr = SetUpMESH(); CHKERRQ(ierr);
 
 	ierr = SetUpOPT(); CHKERRQ(ierr);
@@ -98,57 +100,57 @@ PetscErrorCode TopOpt::SetUp(){
 
 
 PetscErrorCode TopOpt::SetUpMESH(){
-	
+
 	PetscErrorCode ierr;
-	
+
 	// Read input from arguments
 	PetscBool flg;
-	
+
 	// Physics parameters
 	PetscOptionsGetInt(NULL,"-nx",&(nxyz[0]),&flg);
 	PetscOptionsGetInt(NULL,"-ny",&(nxyz[1]),&flg);
 	PetscOptionsGetInt(NULL,"-nz",&(nxyz[2]),&flg);
-	PetscOptionsGetReal(NULL,"-xcmin",&(xc[0]),&flg);	
+	PetscOptionsGetReal(NULL,"-xcmin",&(xc[0]),&flg);
 	PetscOptionsGetReal(NULL,"-xcmax",&(xc[1]),&flg);
 	PetscOptionsGetReal(NULL,"-ycmin",&(xc[2]),&flg);
 	PetscOptionsGetReal(NULL,"-ycmax",&(xc[3]),&flg);
 	PetscOptionsGetReal(NULL,"-zcmin",&(xc[4]),&flg);
 	PetscOptionsGetReal(NULL,"-zcmax",&(xc[5]),&flg);
-        PetscOptionsGetReal(NULL,"-penal",&penal,&flg);
+	PetscOptionsGetReal(NULL,"-penal",&penal,&flg);
 // 	PetscOptionsGetReal(NULL,"-nu",&(nu),&flg);
 	PetscOptionsGetInt(NULL,"-nlvls",&nlvls,&flg);
 
-	
+
 	// Write parameters for the physics _ OWNED BY TOPOPT
 	PetscPrintf(PETSC_COMM_WORLD,"########################################################################\n");
 	PetscPrintf(PETSC_COMM_WORLD,"############################ FEM settings ##############################\n");
 	PetscPrintf(PETSC_COMM_WORLD,"# Number of nodes: (-nx,-ny,-nz):        (%i,%i,%i) \n",nxyz[0],nxyz[1],nxyz[2]);
-        PetscPrintf(PETSC_COMM_WORLD,"# Number of degree of freedom:           %i \n",3*nxyz[0]*nxyz[1]*nxyz[2]);
+	PetscPrintf(PETSC_COMM_WORLD,"# Number of degree of freedom:           %i \n",3*nxyz[0]*nxyz[1]*nxyz[2]);
 	PetscPrintf(PETSC_COMM_WORLD,"# Number of elements:                    (%i,%i,%i) \n",nxyz[0]-1,nxyz[1]-1,nxyz[2]-1);
 	PetscPrintf(PETSC_COMM_WORLD,"# Dimensions: (-xcmin,-xcmax,..,-zcmax): (%f,%f,%f)\n",xc[1]-xc[0],xc[3]-xc[2],xc[5]-xc[4]);
 	PetscPrintf(PETSC_COMM_WORLD,"# -nlvls: %i\n",nlvls);
-       	PetscPrintf(PETSC_COMM_WORLD,"########################################################################\n");
+	PetscPrintf(PETSC_COMM_WORLD,"########################################################################\n");
 
 	// Check if the mesh supports the chosen number of MG levels
 	PetscScalar divisor = PetscPowScalar(2.0,(PetscScalar)nlvls-1.0);
 	// x - dir
 	if ( std::floor((PetscScalar)(nxyz[0]-1)/divisor) != (nxyz[0]-1.0)/((PetscInt)divisor) ) {
 		PetscPrintf(PETSC_COMM_WORLD,"MESH DIMENSION NOT COMPATIBLE WITH NUMBER OF MULTIGRID LEVELS!\n");
-                PetscPrintf(PETSC_COMM_WORLD,"X - number of nodes %i is cannot be halfened %i times\n",nxyz[0],nlvls-1);
+		PetscPrintf(PETSC_COMM_WORLD,"X - number of nodes %i is cannot be halfened %i times\n",nxyz[0],nlvls-1);
 		exit(0);
-	}	
+	}
 	// y - dir
-        if ( std::floor((PetscScalar)(nxyz[1]-1)/divisor) != (nxyz[1]-1.0)/((PetscInt)divisor) ) {
-                PetscPrintf(PETSC_COMM_WORLD,"MESH DIMENSION NOT COMPATIBLE WITH NUMBER OF MULTIGRID LEVELS!\n");
-                PetscPrintf(PETSC_COMM_WORLD,"Y - number of nodes %i is cannot be halfened %i times\n",nxyz[1],nlvls-1);
+	if ( std::floor((PetscScalar)(nxyz[1]-1)/divisor) != (nxyz[1]-1.0)/((PetscInt)divisor) ) {
+		PetscPrintf(PETSC_COMM_WORLD,"MESH DIMENSION NOT COMPATIBLE WITH NUMBER OF MULTIGRID LEVELS!\n");
+		PetscPrintf(PETSC_COMM_WORLD,"Y - number of nodes %i is cannot be halfened %i times\n",nxyz[1],nlvls-1);
 		exit(0);
-        }
+	}
 	// z - dir
-        if ( std::floor((PetscScalar)(nxyz[2]-1)/divisor) != (nxyz[2]-1.0)/((PetscInt)divisor) ) {
-                PetscPrintf(PETSC_COMM_WORLD,"MESH DIMENSION NOT COMPATIBLE WITH NUMBER OF MULTIGRID LEVELS!\n");
-                PetscPrintf(PETSC_COMM_WORLD,"Z - number of nodes %i is cannot be halfened %i times\n",nxyz[2],nlvls-1);
+	if ( std::floor((PetscScalar)(nxyz[2]-1)/divisor) != (nxyz[2]-1.0)/((PetscInt)divisor) ) {
+		PetscPrintf(PETSC_COMM_WORLD,"MESH DIMENSION NOT COMPATIBLE WITH NUMBER OF MULTIGRID LEVELS!\n");
+		PetscPrintf(PETSC_COMM_WORLD,"Z - number of nodes %i is cannot be halfened %i times\n",nxyz[2],nlvls-1);
 		exit(0);
-        }
+	}
 
 
 	// Start setting up the FE problem
@@ -181,25 +183,25 @@ PetscErrorCode TopOpt::SetUpMESH(){
 
 	// Create the nodal mesh
 	ierr = DMDACreate3d(PETSC_COMM_WORLD,bx,by,bz,stype,nx,ny,nz,PETSC_DECIDE,PETSC_DECIDE,PETSC_DECIDE,
-			numnodaldof,stencilwidth,0,0,0,&(da_nodes));
+						numnodaldof,stencilwidth,0,0,0,&(da_nodes));
 	CHKERRQ(ierr);
 
 	// Set the coordinates
 	ierr = DMDASetUniformCoordinates(da_nodes, xmin,xmax, ymin,ymax, zmin,zmax);
 	CHKERRQ(ierr);
-	
+
 	// Set the element type to Q1: Otherwise calls to GetElements will change to P1 !
 	// STILL DOESN*T WORK !!!!
 	ierr = DMDASetElementType(da_nodes, DMDA_ELEMENT_Q1);
 	CHKERRQ(ierr);
-	
+
 	// Create the element mesh: NOTE THIS DOES NOT INCLUDE THE FILTER !!!
-	// find the geometric partitioning of the nodal mesh, so the element mesh will coincide 
+	// find the geometric partitioning of the nodal mesh, so the element mesh will coincide
 	// with the nodal mesh
-	PetscInt md,nd,pd; 
+	PetscInt md,nd,pd;
 	ierr = DMDAGetInfo(da_nodes,NULL,NULL,NULL,NULL,&md,&nd,&pd,NULL,NULL,NULL,NULL,NULL,NULL);
 	CHKERRQ(ierr);
-	
+
 	// vectors with partitioning information
 	PetscInt *Lx=new PetscInt[md];
 	PetscInt *Ly=new PetscInt[nd];
@@ -207,9 +209,9 @@ PetscErrorCode TopOpt::SetUpMESH(){
 
 	// get number of nodes for each partition
 	const PetscInt *LxCorrect, *LyCorrect, *LzCorrect;
-	ierr = DMDAGetOwnershipRanges(da_nodes, &LxCorrect, &LyCorrect, &LzCorrect); 
+	ierr = DMDAGetOwnershipRanges(da_nodes, &LxCorrect, &LyCorrect, &LzCorrect);
 	CHKERRQ(ierr);
-	
+
 	// subtract one from the lower left corner.
 	for (int i=0; i<md; i++){
 		Lx[i] = LxCorrect[i];
@@ -227,9 +229,9 @@ PetscErrorCode TopOpt::SetUpMESH(){
 	// Create the element grid: NOTE CONNECTIVITY IS 0
 	PetscInt conn = 0;
 	ierr = DMDACreate3d(PETSC_COMM_WORLD,bx,by,bz,stype,nx-1,ny-1,nz-1,md,nd,pd,
-			1,conn,Lx,Ly,Lz,&(da_elem));
+						1,conn,Lx,Ly,Lz,&(da_elem));
 	CHKERRQ(ierr);
-	
+
 	// Set element center coordinates
 	ierr = DMDASetUniformCoordinates(da_elem , xmin+dx/2.0,xmax-dx/2.0, ymin+dy/2.0,ymax-dy/2.0, zmin+dz/2.0,zmax-dz/2.0);
 	CHKERRQ(ierr);
@@ -238,67 +240,70 @@ PetscErrorCode TopOpt::SetUpMESH(){
 	delete [] Lx;
 	delete [] Ly;
 	delete [] Lz;
-  
-  
-  	return(ierr);
+
+
+	return(ierr);
 }
 
 PetscErrorCode TopOpt::SetUpOPT(){
-  
+
 	PetscErrorCode ierr;
-  
+
 	//ierr = VecDuplicate(CRAPPY_VEC,&xPhys); CHKERRQ(ierr);
 	ierr = DMCreateGlobalVector(da_elem,&xPhys);  CHKERRQ(ierr);
 	// Total number of design variables
 	VecGetSize(xPhys,&n);
 
 	PetscBool flg;
-	
+
 	// Optimization paramteres
 	PetscOptionsGetReal(NULL,"-Emin",&Emin,&flg);
 	PetscOptionsGetReal(NULL,"-Emax",&Emax,&flg);
 	PetscOptionsGetReal(NULL,"-volfrac",&volfrac,&flg);
-        PetscOptionsGetReal(NULL,"-penal",&penal,&flg);
+	PetscOptionsGetReal(NULL,"-penal",&penal,&flg);
 	PetscOptionsGetReal(NULL,"-rmin",&rmin,&flg);
 	PetscOptionsGetInt(NULL,"-maxItr",&maxItr,&flg);
 	PetscOptionsGetInt(NULL,"-filter",&filter,&flg);
 	PetscOptionsGetReal(NULL,"-Xmin",&Xmin,&flg);
-        PetscOptionsGetReal(NULL,"-Xmax",&Xmax,&flg);
+	PetscOptionsGetReal(NULL,"-Xmax",&Xmax,&flg);
 	PetscOptionsGetReal(NULL,"-movlim",&movlim,&flg);
-        
+	PetscOptionsGetBool(NULL,"-cc",&cc,&flg);
+
 	PetscPrintf(PETSC_COMM_WORLD,"################### Optimization settings ####################\n");
 	PetscPrintf(PETSC_COMM_WORLD,"# Problem size: n= %i, m= %i\n",n,m);
 	PetscPrintf(PETSC_COMM_WORLD,"# -filter: %i  (0=sens., 1=dens, 2=PDE)\n",filter);
 	PetscPrintf(PETSC_COMM_WORLD,"# -rmin: %f\n",rmin);
 	PetscPrintf(PETSC_COMM_WORLD,"# -volfrac: %f\n",volfrac);
-        PetscPrintf(PETSC_COMM_WORLD,"# -penal: %f\n",penal);
+	PetscPrintf(PETSC_COMM_WORLD,"# -penal: %f\n",penal);
 	PetscPrintf(PETSC_COMM_WORLD,"# -Emin/-Emax: %e - %e \n",Emin,Emax);
 	PetscPrintf(PETSC_COMM_WORLD,"# -maxItr: %i\n",maxItr);
 	PetscPrintf(PETSC_COMM_WORLD,"# -movlim: %f\n",movlim);
-       	PetscPrintf(PETSC_COMM_WORLD,"##############################################################\n");
+	PetscPrintf(PETSC_COMM_WORLD,"# -cc: %s\n", cc ? "true" : "false");
+	PetscPrintf(PETSC_COMM_WORLD,"# -ex: %i\n", ex);
+	PetscPrintf(PETSC_COMM_WORLD,"##############################################################\n");
 
-        // Allocate after input
-        gx = new PetscScalar[m];
+	// Allocate after input
+	gx = new PetscScalar[m];
 	if (filter==0){
 		Xmin = 0.001; // Prevent division by zero in filter
 	}
-	
+
 	// Allocate the optimization vectors
 	ierr = VecDuplicate(xPhys,&x); CHKERRQ(ierr);
 	VecSet(x,volfrac); // Initialize to volfrac !
 	VecSet(xPhys,volfrac); // Initialize to volfrac !
-  
+
 	// Sensitivity vectors
 	ierr = VecDuplicate(x,&dfdx); CHKERRQ(ierr);
 	ierr = VecDuplicateVecs(x,m, &dgdx); CHKERRQ(ierr);
 
-	// Bounds and 
+	// Bounds and
 	VecDuplicate(x,&xmin);
 	VecDuplicate(x,&xmax);
-	VecDuplicate(x,&xold);	
+	VecDuplicate(x,&xold);
 	VecSet(xold,volfrac);
-  
-  	return(ierr);
+
+	return(ierr);
 }
 
 PetscErrorCode TopOpt::AllocateMMAwithRestart(PetscInt *itr, MMA **mma)  {
@@ -310,9 +315,9 @@ PetscErrorCode TopOpt::AllocateMMAwithRestart(PetscInt *itr, MMA **mma)  {
 	PetscScalar cMMA[m];
 	PetscScalar dMMA[m];
 	for (PetscInt i=0;i<m;i++){
-	    aMMA[i]=0.0;
-	    dMMA[i]=0.0;
-	    cMMA[i]=1000.0;
+		aMMA[i]=0.0;
+		dMMA[i]=0.0;
+		cMMA[i]=1000.0;
 	}
 
 	// Check if restart is desired
@@ -327,12 +332,12 @@ PetscErrorCode TopOpt::AllocateMMAwithRestart(PetscInt *itr, MMA **mma)  {
 	PetscOptionsGetBool(NULL,"-onlyLoadDesign",&onlyLoadDesign,&flg);
 
 	if (restart) {
-	  ierr = VecDuplicate(x,&xo1); CHKERRQ(ierr);
-	  ierr = VecDuplicate(x,&xo2); CHKERRQ(ierr);
-	  ierr = VecDuplicate(x,&U); CHKERRQ(ierr);
-	  ierr = VecDuplicate(x,&L); CHKERRQ(ierr);
+		ierr = VecDuplicate(x,&xo1); CHKERRQ(ierr);
+		ierr = VecDuplicate(x,&xo2); CHKERRQ(ierr);
+		ierr = VecDuplicate(x,&U); CHKERRQ(ierr);
+		ierr = VecDuplicate(x,&L); CHKERRQ(ierr);
 	}
-	
+
 	// Determine the right place to write the new restart files
 	std::string filenameWorkdir = "./";
 	PetscOptionsGetString(NULL,"-workdir",filenameChar,sizeof(filenameChar),&flg);
@@ -356,7 +361,7 @@ PetscErrorCode TopOpt::AllocateMMAwithRestart(PetscInt *itr, MMA **mma)  {
 
 	PetscOptionsGetString(NULL,"-restartFileVec",filenameChar,sizeof(filenameChar),&flg);
 	if (flg) {
-	   restartFileVec.append(filenameChar);
+		restartFileVec.append(filenameChar);
 	}
 	PetscOptionsGetString(NULL,"-restartFileItr",filenameChar,sizeof(filenameChar),&flg);
 	if (flg) {
@@ -375,17 +380,17 @@ PetscErrorCode TopOpt::AllocateMMAwithRestart(PetscInt *itr, MMA **mma)  {
 	if (!vecFile) { PetscPrintf(PETSC_COMM_WORLD,"File: %s NOT FOUND \n",restartFileVec.c_str()); }
 	PetscBool itrFile = fexists(restartFileItr);
 	if (!itrFile) { PetscPrintf(PETSC_COMM_WORLD,"File: %s NOT FOUND \n",restartFileItr.c_str()); }
-	
+
 	// Read from restart point
-	
+
 	PetscInt nGlobalDesignVar;
 	VecGetSize(x,&nGlobalDesignVar); // ASSUMES THAT SIZE IS ALWAYS MATCHED TO CURRENT MESH
 	if (restart && vecFile && itrFile){
-		
+
 		PetscViewer view;
-		// Open the data files 
-		ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,restartFileVec.c_str(),FILE_MODE_READ,&view);	
-				
+		// Open the data files
+		ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD,restartFileVec.c_str(),FILE_MODE_READ,&view);
+
 		VecLoad(x,view);
 		VecLoad(xPhys,view);
 		VecLoad(xo1,view);
@@ -393,13 +398,13 @@ PetscErrorCode TopOpt::AllocateMMAwithRestart(PetscInt *itr, MMA **mma)  {
 		VecLoad(U,view);
 		VecLoad(L,view);
 		PetscViewerDestroy(&view);
-		
+
 		// Read iteration and fscale
 		std::fstream itrfile(restartFileItr.c_str(), std::ios_base::in);
 		itrfile >> itr[0];
 		itrfile >> fscale;
-		
-		
+
+
 		// Choose if restart is full or just an initial design guess
 		if (onlyLoadDesign){
 			PetscPrintf(PETSC_COMM_WORLD,"# Loading design from file: %s \n",restartFileVec.c_str());
@@ -414,10 +419,10 @@ PetscErrorCode TopOpt::AllocateMMAwithRestart(PetscInt *itr, MMA **mma)  {
 	}
 	else {
 		*mma = new MMA(nGlobalDesignVar,m,x,aMMA,cMMA,dMMA);
-	}  
+	}
 
 	return ierr;
-} 
+}
 
 
 PetscErrorCode TopOpt::WriteRestartFiles(PetscInt *itr, MMA *mma) {
@@ -430,9 +435,9 @@ PetscErrorCode TopOpt::WriteRestartFiles(PetscInt *itr, MMA *mma) {
 
 	// Get restart vectors
 	mma->Restart(xo1,xo2,U,L);
-	
+
 	// Choose previous set of restart files
-	if (flip){ flip = PETSC_FALSE; 	}	
+	if (flip){ flip = PETSC_FALSE; 	}
 	else {     flip = PETSC_TRUE; 	}
 
 	// Write file with iteration number of f0 scaling
@@ -440,11 +445,11 @@ PetscErrorCode TopOpt::WriteRestartFiles(PetscInt *itr, MMA *mma) {
 	// : x,xPhys,xold1,xold2,U,L
 	PetscViewer view; // vectors
 	PetscViewer restartItrF0; // scalars
-	
+
 	PetscViewerCreate(PETSC_COMM_WORLD, &restartItrF0);
 	PetscViewerSetType(restartItrF0, PETSCVIEWERASCII);
 	PetscViewerFileSetMode(restartItrF0, FILE_MODE_WRITE);
-	
+
 	// Open viewers for writing
 	if (!flip){
 		PetscViewerBinaryOpen(PETSC_COMM_WORLD,filename00.c_str(),FILE_MODE_WRITE,&view);
@@ -465,9 +470,9 @@ PetscErrorCode TopOpt::WriteRestartFiles(PetscInt *itr, MMA *mma) {
 	VecView(xPhys,view);
 	VecView(xo1,view);
 	VecView(xo2,view);
-	VecView(U,view);	
+	VecView(U,view);
 	VecView(L,view);
-	
+
 	// Clean up
 	PetscViewerDestroy(&view);
 	PetscViewerDestroy(&restartItrF0);

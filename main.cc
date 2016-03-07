@@ -44,9 +44,11 @@ int main(int argc, char *argv[]){
 	ierr = filter->FilterProject(opt); CHKERRQ(ierr);
 	
 	// STEP 7: OPTIMIZATION LOOP   
+	PetscScalar fx_min = 1e12;
+	PetscInt itr_fx_min = 0;
 	PetscScalar ch = 1.0;
 	double t1,t2;
-	while (itr < opt->maxItr && ch > 0.01){
+	while (itr < opt->maxItr && ch > 0.01 && itr-itr_fx_min < 5){
 		// Update iteration counter
 		itr++;
 
@@ -71,7 +73,7 @@ int main(int argc, char *argv[]){
 		ierr = mma->SetOuterMovelimit(opt->Xmin,opt->Xmax,opt->movlim,opt->x,opt->xmin,opt->xmax); CHKERRQ(ierr);
 
 		// Update design by MMA
-		ierr = mma->Update(opt->x,opt->dfdx,opt->gx,opt->dgdx,opt->xmin,opt->xmax); CHKERRQ(ierr);
+		ierr = mma->Update(opt->x,opt->dfdx,opt->gx,opt->dgdx,opt->xmin,opt->xmax, opt->cc); CHKERRQ(ierr);
 
 		// Inf norm on the design change
 		ch = mma->DesignChange(opt->x,opt->xold);
@@ -82,9 +84,15 @@ int main(int argc, char *argv[]){
 		// stop timer
 		t2 = MPI_Wtime();
 
+		// Update iteration criteria
+		if(opt->fx < fx_min){
+			fx_min = opt->fx;
+			itr_fx_min = itr;
+		}
+
 		// Print to screen
-		PetscPrintf(PETSC_COMM_WORLD,"It.: %i, obj.: %f, g[0]: %f, ch.: %f, time: %f\n",
-				itr,opt->fx,opt->gx[0], ch,t2-t1);
+		PetscPrintf(PETSC_COMM_WORLD,"It.: %i, obj.: %f, g[0]: %f, ch.: %f, stall: %i, time: %f\n",
+				itr,opt->fx,opt->gx[0], ch, itr-itr_fx_min,t2-t1);
 
 		// Write field data: first 10 iterations and then every 20th
 		if (itr<11 || itr%20==0){
@@ -115,3 +123,4 @@ int main(int argc, char *argv[]){
 	PetscFinalize();
 	return 0;
 }
+

@@ -380,7 +380,6 @@ PetscErrorCode MMA::SetRobustAsymptotesType(PetscInt val){
 }
 
 PetscErrorCode MMA::SetOuterMovelimit(PetscScalar Xmin, PetscScalar Xmax, PetscScalar movlim, Vec x, Vec xmin, Vec xmax){
-
 	PetscErrorCode ierr=0;
 
 	PetscScalar *xv,*xmiv,*xmav;
@@ -396,29 +395,18 @@ PetscErrorCode MMA::SetOuterMovelimit(PetscScalar Xmin, PetscScalar Xmax, PetscS
 	VecRestoreArray(x,&xv);
 	VecRestoreArray(xmin,&xmiv);
 	VecRestoreArray(xmax,&xmav);
+
 	return ierr;
 }
 
 PetscScalar MMA::DesignChange(Vec x, Vec xold){
+	PetscScalar ch;
 
+	VecAYPX(xold, -1.0, x);
+	VecNorm(xold,NORM_INFINITY,&ch);
+	VecCopy(x,xold);
 
-	PetscScalar *xv, *xo;
-	PetscInt nloc;
-	VecGetLocalSize(x,&nloc);
-	VecGetArray(x,&xv);
-	VecGetArray(xold,&xo);
-	PetscScalar ch = 0.0;
-	for (PetscInt i=0;i<nloc;i++){
-		ch = PetscMax(ch,PetscAbsReal(xv[i]-xo[i]));
-		xo[i] = xv[i];
-	}
-	PetscScalar tmp;
-	MPI_Allreduce(&ch, &tmp, 1,MPIU_SCALAR, MPI_MAX,PETSC_COMM_WORLD );
-	ch = tmp;
-	VecRestoreArray(x,&xv);
-	VecRestoreArray(xold,&xo);
-
-	return(ch); 
+	return(ch);
 
 }
 
@@ -492,7 +480,7 @@ PetscErrorCode MMA::KKTresidual(Vec x, Vec dfdx, PetscScalar *fx, Vec *dgdx, Vec
 }
 
 // Set and solve a subproblem: return new xval
-PetscErrorCode MMA::Update(Vec xval, Vec dfdx, PetscScalar *gx, Vec *dgdx, Vec xmin, Vec xmax){
+PetscErrorCode MMA::Update(Vec xval, Vec dfdx, PetscScalar *gx, Vec *dgdx, Vec xmin, Vec xmax, bool cc){
 	PetscErrorCode ierr=0;
 
 	if (!NonLinConstraints)	{
@@ -500,15 +488,55 @@ PetscErrorCode MMA::Update(Vec xval, Vec dfdx, PetscScalar *gx, Vec *dgdx, Vec x
 		return -1;
 	}
 
-	// Generate the subproblem
-	GenSub(xval,dfdx,gx,dgdx,xmin,xmax);
+	if(!cc){
+		// Generate the sub problem
+		GenSub(xval,dfdx,gx,dgdx,xmin,xmax);
+	}
 
 	// Update xolds
 	VecCopy(xo1,xo2);
 	VecCopy(xval,xo1);
 
-	// Solve the dual with an interior point method
-	SolveDIP(xval);
+	if(!cc){
+		// Solve the dual with an interior point method
+		SolveDIP(xval);
+		return ierr;
+	}
+
+	// TODO: THESE SHOULD BE INPUTS
+	PetscScalar volfrac = 0.12;
+
+
+	// Allocate variables.
+	PetscInt nloc, i;
+	PetscScalar *xv, *xminv, *xmaxv, *dfdxv;
+	PetscScalar l1, l2, lmid, xsum, tmp;
+	VecGetLocalSize(xval,&nloc);
+	VecGetArray(xval,&xv);
+	VecGetArray(xmin,&xminv);
+	VecGetArray(xmax,&xmaxv);
+	VecGetArray(dfdx,&dfdxv);
+
+	l1 = 0; l2 = 100000;
+	while(l2-l1 > 1e-4){
+		lmid = 0.5*(l2+l1);
+		// Update vector entries.
+		for (i=0; i<nloc; i++) {
+			// Any error should be in this line...
+			tmp = xv[i]*sqrt(-dfdxv[i]/(lmid));
+			xv[i] = Max(xminv[i], Min(xmaxv[i], tmp));
+		}
+		// Update l1/l2.
+		VecSum(xval, &xsum);
+		if(xsum - volfrac*n > 0){ l1 = lmid; }
+		else{ l2 = lmid; }
+	}
+
+	VecRestoreArray(xval,&xv);
+	VecRestoreArray(xmin,&xminv);
+	VecRestoreArray(xmax,&xmaxv);
+	VecRestoreArray(dfdx,&dfdxv);
+
 	return ierr;
 }
 
@@ -993,4 +1021,5 @@ PetscInt MMA::Max(PetscInt d1, PetscInt d2){
 PetscScalar MMA::Abs(PetscScalar d1){
 	return d1>0 ? d1 : -1.0*d1;
 }
+
 

@@ -78,6 +78,16 @@ PetscErrorCode LinearElasticity::SetUpLoadAndBC(TopOpt *opt){
 	//               RHS(z) = sin(pi*y/Ly) at x=xmax,z=zmin;
 	// OR
 	//               RHS(z) = -0.1 at x=xmax,z=zmin;
+
+	// EMHER: A few notes...
+	// 1) xc contains info on the position of boundaries, e.g. xmin = x[0], xmax = x[1], ymin = [2], ...
+	// 2) lcoorp are the local coordinates (mapped by PETSc)
+	// 3) epsi is minimum amound that can be distinguised on the grid
+	// 4) N is the Dirichlet vector (e.g. to set fixed BCs)
+	// 5) RHS is RHS vector (used to set loads?)
+
+	PetscInt ex = opt->ex;
+
 	for (PetscInt i=0;i<nn;i++){
 		// Make a wall with all dofs clamped
 		if (i % 3 == 0 && PetscAbsScalar(lcoorp[i]-opt->xc[0]) < epsi){
@@ -85,10 +95,55 @@ PetscErrorCode LinearElasticity::SetUpLoadAndBC(TopOpt *opt){
 			VecSetValueLocal(N,++i,0.0,INSERT_VALUES);
 			VecSetValueLocal(N,++i,0.0,INSERT_VALUES);
 		}
-		// Line load
-		if (i % 3 == 0 && PetscAbsScalar(lcoorp[i]-opt->xc[1]) < epsi && 
-				  PetscAbsScalar(lcoorp[i+2]-opt->xc[4]) < epsi){
-			VecSetValueLocal(RHS,i+2,-0.1,INSERT_VALUES);
+		// Assign loads depending on exercise.
+		if(ex == 3){
+			// 3D MBB
+			if (i % 3 == 0 && PetscAbsScalar(lcoorp[i]-opt->xc[2]) < epsi){
+				// Now we are at xmax
+				if (i % 3 == 0 && PetscAbsScalar(lcoorp[i+1]-opt->xc[3]) < epsi) {
+					// @ ymin
+					VecSetValueLocal(N,i,0.0,INSERT_VALUES);
+					VecSetValueLocal(N,++i,0.0,INSERT_VALUES);
+					VecSetValueLocal(N,++i,0.0,INSERT_VALUES);
+				}
+			}
+			// Load stuff
+			if (i % 3 == 0 && PetscAbsScalar(lcoorp[i]-opt->xc[0]) < epsi){
+				// Now we are at xmin
+				if (i % 3 == 0 && PetscAbsScalar(lcoorp[i+1]-opt->xc[4]) < epsi) {
+					// @ ymax
+					VecSetValueLocal(RHS, i + 1, -0.1, INSERT_VALUES);
+				}
+			}
+		}
+		else if(ex == 2){
+			// Torsion rod problem
+			if (i % 3 == 0 && PetscAbsScalar(lcoorp[i]-opt->xc[1]) < epsi){
+				// Now we are at xmax
+				if (i % 3 == 0 && PetscAbsScalar(lcoorp[i+1]-opt->xc[2]) < epsi){
+					// @ ymin
+					VecSetValueLocal(RHS,i+2,+0.1,INSERT_VALUES);
+				}
+				if (i % 3 == 0 && PetscAbsScalar(lcoorp[i+1]-opt->xc[3]) < epsi){
+					// @ ymax
+					VecSetValueLocal(RHS,i+2,-0.1,INSERT_VALUES);
+				}
+				if (i % 3 == 0 && PetscAbsScalar(lcoorp[i+2]-opt->xc[4]) < epsi){
+					// @ zmin
+					VecSetValueLocal(RHS,i+1,-0.1,INSERT_VALUES);
+				}
+				if (i % 3 == 0 && PetscAbsScalar(lcoorp[i+2]-opt->xc[5]) < epsi){
+					// @ zmax
+					VecSetValueLocal(RHS,i+1,+0.1,INSERT_VALUES);
+				}
+			}
+		}
+		else{
+			// Line load
+			if (i % 3 == 0 && PetscAbsScalar(lcoorp[i]-opt->xc[1]) < epsi &&
+				PetscAbsScalar(lcoorp[i+2]-opt->xc[4]) < epsi){
+				VecSetValueLocal(RHS,i+2,-0.1,INSERT_VALUES);
+			}
 		}
 		// Adjust the corners
 		if (i % 3 == 0 && PetscAbsScalar(lcoorp[i]-opt->xc[1]) < epsi && 
@@ -923,4 +978,5 @@ PetscScalar LinearElasticity::Inverse3M(PetscScalar J[][3], PetscScalar invJ[][3
 	invJ[2][2] = (J[0][0]*J[1][1]-J[1][0]*J[0][1])/detJ;
 	return detJ;
 }
+
 

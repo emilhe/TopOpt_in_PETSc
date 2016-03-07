@@ -18,7 +18,7 @@ class MMA{
 		~MMA();
 
 		// Set and solve a subproblem: return new xval
-		PetscErrorCode Update(Vec xval, Vec dfdx, PetscScalar *gx, Vec *dgdx, Vec xmin, Vec xmax);
+		PetscErrorCode Update(Vec xval, Vec dfdx, PetscScalar *gx, Vec *dgdx, Vec xmin, Vec xmax, bool cc);
 
 		// Return necessary data for possible restart
 		PetscErrorCode Restart(Vec xo1,Vec xo2,Vec U,Vec L);
