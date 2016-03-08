@@ -84,11 +84,11 @@ int main(int argc, char *argv[]){
 		// stop timer
 		t2 = MPI_Wtime();
 
-		// Update iteration criteria
-		if(opt->fx < fx_min){
-			fx_min = opt->fx;
-			itr_fx_min = itr;
-		}
+//		// Update iteration criteria
+//		if(opt->fx < fx_min){
+//			fx_min = opt->fx;
+//			itr_fx_min = itr;
+//		}
 
 		// Print to screen
 		PetscPrintf(PETSC_COMM_WORLD,"It.: %i, obj.: %f, g[0]: %f, ch.: %f, stall: %i, time: %f\n",
