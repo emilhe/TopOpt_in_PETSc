@@ -48,7 +48,7 @@ int main(int argc, char *argv[]){
 	PetscInt itr_fx_min = 0;
 	PetscScalar ch = 1.0;
 	double t1,t2;
-	while (itr < opt->maxItr && ch > 0.01 && itr-itr_fx_min < 5){
+	while (itr < opt->maxItr && ch > 0.01){ // && itr-itr_fx_min < 5){
 		// Update iteration counter
 		itr++;
 
