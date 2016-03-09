@@ -47,6 +47,7 @@ MMA::MMA(PetscInt nn, PetscInt mm, PetscInt kk, Vec xo1t,Vec xo2t,Vec Ut,Vec Lt,
 
 	VecDuplicate(xo1t, &xo1);
 	VecDuplicate(xo1t, &xo2);
+	VecDuplicate(xo1t, &xn1);
 
 	grad = new PetscScalar[m];
 	mu = new PetscScalar[m];
@@ -135,6 +136,7 @@ MMA::MMA(PetscInt nn, PetscInt mm, PetscInt kk, Vec xo1t,Vec xo2t,Vec Ut,Vec Lt)
 
 	VecDuplicate(xo1t, &xo1);
 	VecDuplicate(xo1t, &xo2);
+	VecDuplicate(xo1t, &xn1);
 
 	grad = new PetscScalar[m];
 	mu = new PetscScalar[m];
@@ -220,6 +222,7 @@ MMA::MMA(PetscInt nn, PetscInt mm,Vec x, PetscScalar *at, PetscScalar *ct,
 
 	VecDuplicate(x, &xo1);
 	VecDuplicate(x, &xo2);
+	VecDuplicate(x, &xn1);
 
 	grad = new PetscScalar[m];
 	mu = new PetscScalar[m];
@@ -272,6 +275,7 @@ MMA::MMA(PetscInt nn, PetscInt mm,Vec x){
 
 	VecDuplicate(x, &xo1);
 	VecDuplicate(x, &xo2);
+	VecDuplicate(x, &xn1);
 
 	grad = new PetscScalar[m];
 	mu = new PetscScalar[m];
@@ -299,6 +303,7 @@ MMA::~MMA(){
         VecDestroyVecs(m,&qij);
         VecDestroy(&xo1);
         VecDestroy(&xo2);
+	VecDestroy(&xn1);
         delete [] grad;
         delete [] mu;
         delete [] s;
@@ -506,37 +511,47 @@ PetscErrorCode MMA::Update(Vec xval, Vec dfdx, PetscScalar *gx, Vec *dgdx, Vec x
 	// TODO: THESE SHOULD BE INPUTS
 	PetscScalar volfrac = 0.12;
 
-
 	// Allocate variables.
 	PetscInt nloc, i;
-	PetscScalar *xv, *xminv, *xmaxv, *dfdxv;
+	PetscScalar *xv, *xminv, *xmaxv, *dfdxv, *xn1v;
 	PetscScalar l1, l2, lmid, xsum, tmp;
 	VecGetLocalSize(xval,&nloc);
 	VecGetArray(xval,&xv);
 	VecGetArray(xmin,&xminv);
 	VecGetArray(xmax,&xmaxv);
 	VecGetArray(dfdx,&dfdxv);
+	VecGetArray(xn1,&xn1v);
 
+	// Calculate x_new.
 	l1 = 0; l2 = 100000;
 	while(l2-l1 > 1e-4){
-		lmid = 0.5*(l2+l1);
+	  // xsum = 0.0; 
+	  lmid = 0.5*(l2+l1);
 		// Update vector entries.
 		for (i=0; i<nloc; i++) {
-			// Any error should be in this line...
-			tmp = xv[i]*sqrt(-dfdxv[i]/(lmid));
-			xv[i] = Max(xminv[i], Min(xmaxv[i], tmp));
+			tmp = xv[i]*sqrt(-dfdxv[i]/lmid);
+			xn1v[i] = Max(xminv[i], Min(xmaxv[i], tmp));
+			// xsum += xn1v[i]; 
 		}
+		//MPI_Allreduce(&xn1v[0],&xsum,nloc,MPIU_SCALAR,MPI_SUM,PETSC_COMM_WORLD);
+		VecRestoreArray(xn1,&xn1v);
+		VecSum(xn1, &xsum);
+		VecGetArray(xn1,&xn1v);
 		// Update l1/l2.
-		VecSum(xval, &xsum);
 		if(xsum - volfrac*n > 0){ l1 = lmid; }
 		else{ l2 = lmid; }
 	}
-
+	// Update x entries.
+	for (i=0; i<nloc; i++) {
+	  xv[i] = xn1v[i];
+	}
+	
 	VecRestoreArray(xval,&xv);
 	VecRestoreArray(xmin,&xminv);
 	VecRestoreArray(xmax,&xmaxv);
 	VecRestoreArray(dfdx,&dfdxv);
-
+	VecRestoreArray(xn1,&xn1v);
+	
 	return ierr;
 }
 

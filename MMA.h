@@ -100,7 +100,7 @@ class MMA{
 		PetscScalar *b,*grad,*Hess;
 
 		// Global: Old design variables
-		Vec xo1, xo2;
+		Vec xo1, xo2, xn1;
 
 		// Math helpers
 		PetscErrorCode Factorize(PetscScalar *K, PetscInt nn);
