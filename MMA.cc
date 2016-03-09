@@ -525,18 +525,14 @@ PetscErrorCode MMA::Update(Vec xval, Vec dfdx, PetscScalar *gx, Vec *dgdx, Vec x
 	// Calculate x_new.
 	l1 = 0; l2 = 100000;
 	while(l2-l1 > 1e-4){
-	  // xsum = 0.0; 
 	  lmid = 0.5*(l2+l1);
 		// Update vector entries.
 		for (i=0; i<nloc; i++) {
 			tmp = xv[i]*sqrt(-dfdxv[i]/lmid);
 			xn1v[i] = Max(xminv[i], Min(xmaxv[i], tmp));
-			// xsum += xn1v[i]; 
 		}
-		//MPI_Allreduce(&xn1v[0],&xsum,nloc,MPIU_SCALAR,MPI_SUM,PETSC_COMM_WORLD);
-		VecRestoreArray(xn1,&xn1v);
+		// Calculate sum.
 		VecSum(xn1, &xsum);
-		VecGetArray(xn1,&xn1v);
 		// Update l1/l2.
 		if(xsum - volfrac*n > 0){ l1 = lmid; }
 		else{ l2 = lmid; }
